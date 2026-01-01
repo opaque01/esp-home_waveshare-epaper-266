@@ -1,0 +1,143 @@
+esphome:
+  name: esp-indoor
+  friendly_name: ESP_indoor
+  
+esp8266:
+  board: nodemcuv2
+
+external_components:
+  - source:
+      type: local
+      path: my_components
+    components: [ waveshare_epaper_266 ]
+
+wifi:
+  ssid: "opaque24GHz"
+  password: "opaque01"
+  min_auth_mode: WPA2
+  
+  ap:
+    ssid: "ESP_indoor Fallback"
+    password: "opaque01"
+
+captive_portal:
+
+logger:
+  level: DEBUG
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+api:
+  encryption:
+    key: "FCH+UudgbaVR2njbEQmE1pTPJv8uirq1NGH1yPLFDug="
+
+ota:
+  - platform: esphome
+    password: "a0d7b54af8af00b5db1ede0e19e337b7"
+
+i2c:
+  sda: D2
+  scl: D1
+  scan: true
+  id: bus_a
+
+spi:
+  clk_pin: D5
+  mosi_pin: D7
+
+font:
+  - file: "gfonts://Roboto"
+    id: font_small
+    size: 14
+  - file: "gfonts://Roboto"
+    id: font_medium
+    size: 18
+  - file: "gfonts://Roboto@700"
+    id: font_large
+    size: 28
+  - file: "gfonts://Roboto@700"
+    id: font_xlarge
+    size: 36
+  - file: "gfonts://Roboto"
+    id: font_title
+    size: 20
+
+sensor:
+  - platform: bme280_i2c
+    address: 0x76
+    temperature:
+      name: "BME280 Temperature"
+      id: bme280_temperature
+    pressure:
+      name: "BME280 Pressure"
+      id: bme280_pressure
+    humidity:
+      name: "BME280 Humidity"
+      id: bme280_humidity
+    update_interval: 30s
+
+  - platform: wifi_signal
+    name: "ESP_indoor WiFi Signal"
+    update_interval: 60s
+
+web_server:
+  port: 80
+  local: true
+  auth:
+    username: opaque
+    password: "opaque01"
+
+display:
+  - platform: waveshare_epaper_266
+    id: epaper_display
+    cs_pin: D8
+    dc_pin: D3
+    busy_pin: D6
+    reset_pin: D0
+    update_interval: 60s
+    rotation: 90°
+    auto_clear_enabled: false
+
+    lambda: |-
+      using namespace esphome::display;
+
+      const int w = it.get_width();
+      const int h = it.get_height();
+
+      const int x_label = 15;
+      const int x_value = w - 15;
+
+      // Hintergrund weiß, alles danach schwarz zeichnen
+      it.fill(COLOR_ON);
+
+      // Temperatur
+      it.print(x_label, 0, id(font_medium), COLOR_OFF, "Temp");
+      if (id(bme280_temperature).has_state()) {
+        it.printf(x_value, 0, id(font_xlarge), COLOR_OFF,
+                  TextAlign::TOP_RIGHT, "%.1f°C", id(bme280_temperature).state);
+      }
+
+      it.line(10, 48, w - 10, 48, COLOR_OFF);
+
+      // Luftfeuchtigkeit
+      it.print(x_label, 55, id(font_medium), COLOR_OFF, "Feuchte");
+      if (id(bme280_humidity).has_state()) {
+        it.printf(x_value, 52, id(font_xlarge), COLOR_OFF,
+                  TextAlign::TOP_RIGHT, "%.1f%%", id(bme280_humidity).state);
+      }
+
+      it.line(10, 103, w - 10, 103, COLOR_OFF);
+
+      // Luftdruck
+      it.print(x_label, 110, id(font_medium), COLOR_OFF, "Druck");
+      if (id(bme280_pressure).has_state()) {
+        it.printf(x_value, 107, id(font_xlarge), COLOR_OFF,
+                  TextAlign::TOP_RIGHT, "%.1fhPa", id(bme280_pressure).state);
+      }
+
+status_led:
+  pin:
+    number: D4
+    inverted: true
